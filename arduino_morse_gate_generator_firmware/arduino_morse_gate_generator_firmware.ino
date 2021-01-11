@@ -1,10 +1,50 @@
-#define LED_PIN 13
+// libraries
+#include "TimerOne\TimerOne.cpp"
 
-bool tic = false;
+// pin definitions
+#define RATE_PIN      A0
+#define GATE_PIN      13
+#define CLOCK_PIN     2
+#define CLOCK_SEL_PIN 5
+
+// rate selection range
+unsigned int min_period = 25;   // ms
+unsigned int max_period = 2500; // ms (note: time1 max period is 8388.480 ms)
+
+byte min_division = 1;
+byte max_division = 8;
+
+// clock globals
+bool  tic       = false;
+byte  counter   = 0;
+byte  division  = 1;
+unsigned int period = 1000;
+
+// current and previous states of clock select pin
+bool cur_clock_sel_state  = true; // true = internal clock / false = external clock
+bool prev_clock_sel_state = true;
 
 void setup() {
-  pinMode(LED_PIN, OUTPUT);
-  Serial.begin(9600);
+  // pinmodes
+  pinMode(RATE_PIN,      INPUT);
+  pinMode(GATE_PIN,      OUTPUT);
+  pinMode(CLOCK_PIN,     INPUT);
+  pinMode(CLOCK_SEL_PIN, INPUT_PULLUP);
+
+  // set up serial for debugging
+  //Serial.begin(9600);
+
+  // set up clock select
+  cur_clock_sel_state = digitalRead(CLOCK_SEL_PIN) == HIGH;
+  prev_clock_sel_state = cur_clock_sel_state;
+  read_rate_pot();
+
+  // set up timer1
+  Timer1.initialize((unsigned long) 1000 * (unsigned long) period);
+  if (cur_clock_sel_state)
+    Timer1.attachInterrupt(internal_clock);
+  else
+    attachInterrupt(digitalPinToInterrupt(CLOCK_PIN), external_clock, FALLING);
 }
 
 void loop() {
@@ -14,14 +54,75 @@ void loop() {
   write_char(' ');
 }
 
+// function to execute while waiting for the next step
+void do_while_waiting() {
+  read_clock_select();
+  read_rate_pot();
+}
+
+// read the clock select switch and enable/disable internal/external clock
+void read_clock_select() {
+  cur_clock_sel_state = digitalRead(CLOCK_SEL_PIN) == HIGH;
+
+  // switch from internal to external
+  if (prev_clock_sel_state && (!cur_clock_sel_state)) {
+    read_rate_pot();
+    Timer1.detachInterrupt();
+    attachInterrupt(digitalPinToInterrupt(CLOCK_PIN), external_clock, FALLING);
+  }
+
+  // switch from external to internal
+  if (cur_clock_sel_state && (!prev_clock_sel_state)) {
+    read_rate_pot();
+    detachInterrupt(digitalPinToInterrupt(CLOCK_PIN));
+    Timer1.attachInterrupt(internal_clock);
+  }
+
+  prev_clock_sel_state = cur_clock_sel_state;
+}
+
+// read the rate pot and set division and period values
+void read_rate_pot() {
+  // some ugly float math to get the correct division and period values
+
+  float value = ((float) (1023 - analogRead(RATE_PIN)) / 1023.); // 0-1
+
+  if (cur_clock_sel_state) {
+    // simulate log pot, see http://benholmes.co.uk/posts/2017/11/logarithmic-potentiometer-laws
+    period = (pow(51., value) - 1) * 0.02 * (max_period - min_period) + min_period;
+    Timer1.setPeriod((unsigned long) 1000 * (unsigned long) period);
+    //Serial.print("Period: ");
+    //Serial.println(period);
+  }
+
+  else {
+    division = value * ((float) (max_division - min_division)) + (float) min_division + 0.5; // +0.5 to get correct rounding into int
+    //Serial.print("Division: ");
+    //Serial.println(division);
+  }
+}
+
+// internal clock interrupt function
+void internal_clock() {
+  tic = true;
+}
+
+// external clock interrupt function
+void external_clock() {
+  counter++;
+  counter %= division;
+  if (counter == 0)
+    tic = true;
+}
+
 // write character into Morse code
 void write_char(char character) {
   // handle spaces
   if (character == 32) {
-    Serial.println(' ');
+    //Serial.println(' ');
     // we already did 3 low tics after the previous character, so just 4 more here
     wait_for_tic(1);
-    digitalWrite(LED_PIN, LOW);
+    digitalWrite(GATE_PIN, LOW);
     wait_for_tic(3);
   }
 
@@ -43,29 +144,29 @@ void write_char(char character) {
 
         // dah
         if (bitRead(str, j)) {
-          Serial.print('-');
+          //Serial.print('-');
           wait_for_tic(1);
-          digitalWrite(LED_PIN, HIGH);
+          digitalWrite(GATE_PIN, HIGH);
           wait_for_tic(2);
         }
 
         // dit
         else {
-          Serial.print('.');
+          //Serial.print('.');
           wait_for_tic(1);
-          digitalWrite(LED_PIN, HIGH);
+          digitalWrite(GATE_PIN, HIGH);
         }
 
         // do 1 low tic after each dit/dah
         wait_for_tic(1);
-        digitalWrite(LED_PIN, LOW); 
+        digitalWrite(GATE_PIN, LOW);
       }
 
       // end of character
       // we already did 1 low tic1 after the previous dit/dah, so just 2 more here
-      Serial.print('/');
+      //Serial.print('/');
       wait_for_tic(1);
-      digitalWrite(LED_PIN, LOW);
+      digitalWrite(GATE_PIN, LOW);
       wait_for_tic(1);
     }
   }
@@ -74,9 +175,10 @@ void write_char(char character) {
 // wait for the next edge on the clock to happen, reset tic and proceed
 void wait_for_tic(byte n) {
   for (byte i = 0; i < n; i++) {
-    //while(~tic);
-    //tic = false;
-    delay(150);
+    while (!tic) {
+      do_while_waiting();
+    }
+    tic = false;
   }
 }
 
