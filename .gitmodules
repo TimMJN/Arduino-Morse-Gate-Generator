@@ -1,0 +1,3 @@
+[submodule "TimerOne"]
+	path = arduino_morse_gate_generator_firmware/TimerOne
+	url = https://github.com/PaulStoffregen/TimerOne
