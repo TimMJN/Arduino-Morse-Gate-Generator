@@ -1,0 +1,7 @@
+
+*.tmp
+*.lib
+*.kicad_pcb
+*.pro
+*.sch
+*.sch-bak
