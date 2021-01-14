@@ -27,10 +27,13 @@ unsigned long period = 1000000;
 bool cur_int_clock_state  = true; // true = internal clock / false = external clock
 bool prev_int_clock_state = true;
 
-//
+// sd card variables/objects
 bool sd_valid = false;
 File root;
 File cur_file;
+
+// morse variables
+bool last_was_space = false; // was the last printed character a space?
 
 void setup() {
   // pinmodes
@@ -63,10 +66,21 @@ void setup() {
 }
 
 void loop() {
-  write_char('S');
-  write_char('o');
-  write_char('s');
-  write_char(' ');
+  if (sd_valid) {
+    // read the file untill the end is reached
+    while (cur_file.available()) {
+      write_char((char) cur_file.read());
+    }
+    cur_file.close(); // close the file
+    open_next_file(); // open the next one
+  }
+  // no valid sd/file is available, repeatedly sent "SOS "
+  else {
+    write_char('S');
+    write_char('O');
+    write_char('S');
+    write_char(' ');
+  }
 }
 
 // function to execute while waiting for the next step
@@ -132,8 +146,8 @@ bool open_next_file() {
 
   while (!found_valid_file) {
     // try to open the next file
-    File cur_file = root.openNextFile();
-    
+    cur_file = root.openNextFile();
+
     if (!cur_file) {              // no file was found
       if (!have_rewinded) {        // if we haven't rewinded, try that
         root.rewindDirectory();    // rewind
@@ -147,7 +161,7 @@ bool open_next_file() {
         break;                     // if we have already rewinded, give up
       }
     }
-    
+
     // skip any directories
     if (cur_file.isDirectory()) {
       //Serial.print(cur_file.name());
@@ -155,18 +169,18 @@ bool open_next_file() {
       cur_file.close();
       continue;
     }
-    
+
     // skip any non '.txt' files
     char* filename = cur_file.name();
     if (!strstr(strlwr(filename + (strlen(filename) - 4)), ".txt")) {
       //Serial.print(cur_file.name());
       //Serial.println(" is not a txt file");
       cur_file.close();
-      continue;                                     
+      continue;
     }
 
     // skip any empty files
-    if (cur_file.size()==0) {
+    if (cur_file.size() == 0) {
       //Serial.print(cur_file.name());
       //Serial.println(" is empty");
       cur_file.close();
@@ -174,22 +188,27 @@ bool open_next_file() {
     }
 
     // we've made it, this file seems valid
-    found_valid_file = true;
     //Serial.print(cur_file.name());
     //Serial.println(" is valid");
+    found_valid_file = true;
   }
   return found_valid_file;
 }
 
 // write character into Morse code
 void write_char(char character) {
-  // handle spaces
-  if (character == 32) {
-    //Serial.println(' ');
-    // we already did 3 low tics after the previous character, so just 4 more here
-    wait_for_tic(1);
-    digitalWrite(GATE_PIN, LOW);
-    wait_for_tic(3);
+
+  // handle spaces / linebreaks
+  if (character == 32 || character == 10) {
+    if (!last_was_space) { // don't print consecutive spaces
+      //Serial.println(' ');
+
+      last_was_space = true;
+      // we already did 3 low tics after the previous character, so just 4 more here
+      wait_for_tic(1);
+      digitalWrite(GATE_PIN, LOW);
+      wait_for_tic(3);
+    }
   }
 
   // handle other characters
@@ -205,6 +224,11 @@ void write_char(char character) {
 
     // skip invalid characters
     if (len > 0) {
+      //Serial.print("Writing: ");
+      //Serial.println(character);
+
+      last_was_space = false;
+
       // loop over the dit/dahs in the Morse code
       for (byte j = 0; j < len; j++) {
 
