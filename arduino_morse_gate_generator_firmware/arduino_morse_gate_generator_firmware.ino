@@ -1,11 +1,14 @@
 // libraries
 #include "TimerOne\TimerOne.cpp"
+#include <SPI.h>
+#include <SD.h>
 
 // pin definitions
 #define RATE_PIN      A0
-#define GATE_PIN      13
+#define GATE_PIN      4
 #define CLOCK_PIN     2
 #define CLOCK_SEL_PIN 5
+#define SS_PIN        10
 
 // rate selection range
 unsigned long min_period = 25000;   // us
@@ -24,6 +27,11 @@ unsigned long period = 1000000;
 bool cur_int_clock_state  = true; // true = internal clock / false = external clock
 bool prev_int_clock_state = true;
 
+//
+bool sd_valid = false;
+File root;
+File cur_file;
+
 void setup() {
   // pinmodes
   pinMode(RATE_PIN,      INPUT);
@@ -33,9 +41,16 @@ void setup() {
 
   // set up serial for debugging
   //Serial.begin(9600);
+  //while (!Serial) {}
+
+  // open sd card
+  sd_valid = SD.begin(SS_PIN); // returns false if no SD was found
+  root = SD.open("/");
+  if (sd_valid)
+    sd_valid = open_next_file(); // returns false if no valid file was found
 
   // set up clock select
-  cur_int_clock_state = digitalRead(CLOCK_SEL_PIN) == HIGH;
+  cur_int_clock_state  = digitalRead(CLOCK_SEL_PIN) == HIGH;
   prev_int_clock_state = cur_int_clock_state;
   read_rate_pot();
 
@@ -85,12 +100,12 @@ void read_rate_pot() {
 
   division = map(value, 0, 1023, min_division - 1, max_division + 1);
   division = constrain(division, min_division, max_division);
-  
-  period = value*value*value/((unsigned long) 1023*1023); // mimic a log pot by using val^3
-  period *= (max_period - min_period)/((unsigned long) 1023);
+
+  period = value * value * value / ((unsigned long) 1023 * 1023); // mimic a log pot by using val^3
+  period *= (max_period - min_period) / ((unsigned long) 1023);
   period += min_period;
   Timer1.setPeriod(period);
-  
+
   //Serial.print("Period: ");
   //Serial.print(period);
   //Serial.print(" ; Division: ");
@@ -108,6 +123,62 @@ void external_clock() {
   counter %= division;
   if (counter == 0)
     tic = true;
+}
+
+// open the next valid file on the sd card
+bool open_next_file() {
+  bool found_valid_file = false;
+  bool have_rewinded    = false;   // have we tried rewinding the dir?
+
+  while (!found_valid_file) {
+    // try to open the next file
+    File cur_file = root.openNextFile();
+    
+    if (!cur_file) {              // no file was found
+      if (!have_rewinded) {        // if we haven't rewinded, try that
+        root.rewindDirectory();    // rewind
+        have_rewinded = true;      // make sure we only rewind once
+        cur_file.close();
+        continue;                  // go back to start of loop
+      }
+      else {
+        //Serial.println("No further files found");
+        cur_file.close();
+        break;                     // if we have already rewinded, give up
+      }
+    }
+    
+    // skip any directories
+    if (cur_file.isDirectory()) {
+      //Serial.print(cur_file.name());
+      //Serial.println(" is a dir");
+      cur_file.close();
+      continue;
+    }
+    
+    // skip any non '.txt' files
+    char* filename = cur_file.name();
+    if (!strstr(strlwr(filename + (strlen(filename) - 4)), ".txt")) {
+      //Serial.print(cur_file.name());
+      //Serial.println(" is not a txt file");
+      cur_file.close();
+      continue;                                     
+    }
+
+    // skip any empty files
+    if (cur_file.size()==0) {
+      //Serial.print(cur_file.name());
+      //Serial.println(" is empty");
+      cur_file.close();
+      continue;
+    }
+
+    // we've made it, this file seems valid
+    found_valid_file = true;
+    //Serial.print(cur_file.name());
+    //Serial.println(" is valid");
+  }
+  return found_valid_file;
 }
 
 // write character into Morse code
