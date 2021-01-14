@@ -21,8 +21,8 @@ byte  division  = 1;
 unsigned long period = 1000000;
 
 // current and previous states of clock select pin
-bool cur_clock_sel_state  = true; // true = internal clock / false = external clock
-bool prev_clock_sel_state = true;
+bool cur_int_clock_state  = true; // true = internal clock / false = external clock
+bool prev_int_clock_state = true;
 
 void setup() {
   // pinmodes
@@ -35,13 +35,13 @@ void setup() {
   //Serial.begin(9600);
 
   // set up clock select
-  cur_clock_sel_state = digitalRead(CLOCK_SEL_PIN) == HIGH;
-  prev_clock_sel_state = cur_clock_sel_state;
+  cur_int_clock_state = digitalRead(CLOCK_SEL_PIN) == HIGH;
+  prev_int_clock_state = cur_int_clock_state;
   read_rate_pot();
 
   // set up timer1
   Timer1.initialize(period);
-  if (cur_clock_sel_state)
+  if (cur_int_clock_state)
     Timer1.attachInterrupt(internal_clock);
   else
     attachInterrupt(digitalPinToInterrupt(CLOCK_PIN), external_clock, FALLING);
@@ -56,29 +56,27 @@ void loop() {
 
 // function to execute while waiting for the next step
 void do_while_waiting() {
-  read_clock_select();
   read_rate_pot();
+  read_clock_select();
 }
 
 // read the clock select switch and enable/disable internal/external clock
 void read_clock_select() {
-  cur_clock_sel_state = digitalRead(CLOCK_SEL_PIN) == HIGH;
+  cur_int_clock_state = digitalRead(CLOCK_SEL_PIN) == HIGH;
 
   // switch from internal to external
-  if (prev_clock_sel_state && (!cur_clock_sel_state)) {
-    read_rate_pot();
+  if (prev_int_clock_state && (!cur_int_clock_state)) {
     Timer1.detachInterrupt();
     attachInterrupt(digitalPinToInterrupt(CLOCK_PIN), external_clock, FALLING);
   }
 
   // switch from external to internal
-  if (cur_clock_sel_state && (!prev_clock_sel_state)) {
-    read_rate_pot();
+  if (cur_int_clock_state && (!prev_int_clock_state)) {
     detachInterrupt(digitalPinToInterrupt(CLOCK_PIN));
     Timer1.attachInterrupt(internal_clock);
   }
 
-  prev_clock_sel_state = cur_clock_sel_state;
+  prev_int_clock_state = cur_int_clock_state;
 }
 
 // read the rate pot and set division and period values
