@@ -8,8 +8,8 @@
 #define CLOCK_SEL_PIN 5
 
 // rate selection range
-unsigned int min_period = 25;   // ms
-unsigned int max_period = 2500; // ms (note: time1 max period is 8388.480 ms)
+unsigned long min_period = 25000;   // us
+unsigned long max_period = 2500000; // us (note: time1 max period is 8388480 ms)
 
 byte min_division = 1;
 byte max_division = 8;
@@ -18,7 +18,7 @@ byte max_division = 8;
 bool  tic       = false;
 byte  counter   = 0;
 byte  division  = 1;
-unsigned int period = 1000;
+unsigned long period = 1000000;
 
 // current and previous states of clock select pin
 bool cur_clock_sel_state  = true; // true = internal clock / false = external clock
@@ -40,7 +40,7 @@ void setup() {
   read_rate_pot();
 
   // set up timer1
-  Timer1.initialize((unsigned long) 1000 * (unsigned long) period);
+  Timer1.initialize(period);
   if (cur_clock_sel_state)
     Timer1.attachInterrupt(internal_clock);
   else
@@ -83,23 +83,20 @@ void read_clock_select() {
 
 // read the rate pot and set division and period values
 void read_rate_pot() {
-  // some ugly float math to get the correct division and period values
+  unsigned long value = 1023 - analogRead(RATE_PIN); // we need unsigned long for the period calculation
 
-  float value = ((float) (1023 - analogRead(RATE_PIN)) / 1023.); // 0-1
-
-  if (cur_clock_sel_state) {
-    // simulate log pot, see http://benholmes.co.uk/posts/2017/11/logarithmic-potentiometer-laws
-    period = (pow(51., value) - 1) * 0.02 * (max_period - min_period) + min_period;
-    Timer1.setPeriod((unsigned long) 1000 * (unsigned long) period);
-    //Serial.print("Period: ");
-    //Serial.println(period);
-  }
-
-  else {
-    division = value * ((float) (max_division - min_division)) + (float) min_division + 0.5; // +0.5 to get correct rounding into int
-    //Serial.print("Division: ");
-    //Serial.println(division);
-  }
+  division = map(value, 0, 1023, min_division - 1, max_division + 1);
+  division = constrain(division, min_division, max_division);
+  
+  period = value*value*value/((unsigned long) 1023*1023); // mimic a log pot by using val^3
+  period *= (max_period - min_period)/((unsigned long) 1023);
+  period += min_period;
+  Timer1.setPeriod(period);
+  
+  //Serial.print("Period: ");
+  //Serial.print(period);
+  //Serial.print(" ; Division: ");
+  //Serial.println(division);
 }
 
 // internal clock interrupt function
