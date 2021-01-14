@@ -72,7 +72,7 @@ void loop() {
       write_char((char) cur_file.read());
     }
     cur_file.close(); // close the file
-    open_next_file(); // open the next one
+    sd_valid = open_next_file(); // open the next one
   }
   // no valid sd/file is available, repeatedly sent "SOS "
   else {
