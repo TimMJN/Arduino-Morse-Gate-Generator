@@ -22,3 +22,6 @@ This switches between to internal and the external clock. When in internal clock
 
 #### What are `interrupts`?
 These are events which will cause the Arduino to stop doing whatever it was doing and handle the `interrupt` first. This ensures there is no delay between the triggering of the clock and the update of the gate. This module uses both pin `interrupts` (for the external clock) and timer `interrupts` (for the internal clock). This ensures both clocks are tracked accurately.
+
+#### Why would I want Morse code in my synth?
+Why not? By patching straight into a VCA you can indeed make it sound like Morse code. But you can also think of it as a random rythm generator. Use it to trigger envelopes or samples, get creative!
