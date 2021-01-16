@@ -5,3 +5,8 @@
 *.pro
 *.sch
 *.sch-bak
+arduino_morse_gate_generator_schematic/fp-info-cache
+arduino_morse_gate_generator_schematic/arduino_morse_gate_generator_schematic.net
+*.kicad_pcb-bak
+arduino_morse_gate_generator_schematic/arduino_morse_gate_generator_BOM.csv
+arduino_morse_gate_generator_schematic/arduino_morse_gate_generator_BOM.xlsx
