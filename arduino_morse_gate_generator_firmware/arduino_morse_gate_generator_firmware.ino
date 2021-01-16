@@ -1,3 +1,20 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* 
+ * Arduino Morse Gate Generator
+ * synthesizer module firmware
+ * 
+ * by TimMJN
+ * 
+ * v1.0 
+ * 16-01-2021
+ * 
+ * For schematics and other information, see
+ * https://github.com/TimMJN/Arduino-Morse-Gate-Generator
+ */
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+ 
 // libraries
 #include "TimerOne\TimerOne.cpp"
 #include <SPI.h>
@@ -35,6 +52,8 @@ File cur_file;
 // morse variables
 bool last_was_space = false; // was the last printed character a space?
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void setup() {
   // pinmodes
   pinMode(RATE_PIN,      INPUT);
@@ -65,6 +84,8 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(CLOCK_PIN), external_clock, FALLING);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void loop() {
   if (sd_valid) {
     // read the file untill the end is reached
@@ -83,11 +104,15 @@ void loop() {
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // function to execute while waiting for the next step
 void do_while_waiting() {
   read_rate_pot();
   read_clock_select();
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // read the clock select switch and enable/disable internal/external clock
 void read_clock_select() {
@@ -108,6 +133,8 @@ void read_clock_select() {
   prev_int_clock_state = cur_int_clock_state;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // read the rate pot and set division and period values
 void read_rate_pot() {
   unsigned long value = 1023 - analogRead(RATE_PIN); // we need unsigned long for the period calculation
@@ -126,10 +153,14 @@ void read_rate_pot() {
   //Serial.println(division);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // internal clock interrupt function
 void internal_clock() {
   tic = true;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // external clock interrupt function
 void external_clock() {
@@ -138,6 +169,8 @@ void external_clock() {
   if (counter == 0)
     tic = true;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // open the next valid file on the sd card
 bool open_next_file() {
@@ -194,6 +227,8 @@ bool open_next_file() {
   }
   return found_valid_file;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // write character into Morse code
 void write_char(char character) {
@@ -262,6 +297,8 @@ void write_char(char character) {
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // wait for the next edge on the clock to happen, reset tic and proceed
 void wait_for_tic(byte n) {
   for (byte i = 0; i < n; i++) {
@@ -271,6 +308,8 @@ void wait_for_tic(byte n) {
     tic = false;
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // return Morse code "string" for each character
 byte morse_string(char character) {
@@ -334,6 +373,8 @@ byte morse_string(char character) {
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // return length of Morse code string for each character
 byte morse_length(char character) {
   switch (character) {
@@ -395,3 +436,5 @@ byte morse_length(char character) {
     default: return 0; // invalid
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
