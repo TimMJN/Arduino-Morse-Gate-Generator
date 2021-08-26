@@ -6,7 +6,7 @@ Features:
 - internal and external clocks
 - `interrupt` based timing
 - built-in clock divider
-- buffered 9v gate output
+- buffered 5v gate output
 
 #### Submodules
 This repository uses submodules to include libraries in the firmware. Please make sure, when cloning this repository, to also include the submodules in the [`src`](https://github.com/TimMJN/Arduino-Morse-Gate-Generator/tree/main/arduino_morse_gate_generator_firmware/src) directory.
