@@ -8,6 +8,9 @@ Features:
 - built-in clock divider
 - buffered 9v gate output
 
+#### Submodules
+This repository uses submodules to include libraries in the firmware. Please make sure, when cloning this repository, to also include the submodules in the [`src`](https://github.com/TimMJN/Arduino-Morse-Gate-Generator/tree/main/arduino_morse_gate_generator_firmware/src) directory.
+
 # Frequently Asked Questions
 #### Do you have PCBs / panels available?
 This is a project with a very low part count, most of the work happens inside the Arduino. Therefore, I will not be releasing a PCB layout; the module can easily be build on any protoboard/stripboard. Get creative!
